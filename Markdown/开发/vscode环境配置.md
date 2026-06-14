@@ -149,3 +149,20 @@ setting.json
     }
 }
 ```
+
+
+## 问题
+
+### cppdbg 不受支持
+#### 原因1
+[配置的类型“cppdbg”不受支持 使用vscode编译c++程序时出现这句话，什么意思是，怎么解决？](https://www.zhihu.com/question/266875809/answer/2829448976)
+```
+原因是，安装在服务器remote的安装的cpptools是windows软件，在linux不支持，你可以看~/.vscode-server/extensions/ms-vscode.cpptools-1.5.1/bin/（或者 .remotedev-server/extensions/ms-vscode.cpptools-1.5.1/bin）下是**.exe可执行文件。所以，首先，卸载现有的romote端的cpptools，删除服务器~/.vscode-server/extensions（或者 ./remotedev-server/extensions/ ）路径下相应的软件，重载vscode。然后，从https://github.com/microsoft/vscode-cpptools/releases?page=5，根据vscode的版本，看git cpptools 的Requirements，寻找合适的版本，然后，下载cpptools-linux.vsix，拷贝到linux服务器的~/.vscode-server/extensions（或者 ./remotedev-server/extensions/ ）路径下，
+最后，在windows点击
+```
+
+#### 原因2
+[配置的类型“cppdbg”不受支持 使用vscode编译c++程序时出现这句话，什么意思是，怎么解决？](https://www.zhihu.com/question/266875809/answer/3547965167)
+```
+没安装C/C++拓展或者禁用了这个拓展，导致配置的类型“cppdbg”不受支持。安装C/C++拓展或者启用拓展就好了。
+```

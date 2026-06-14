@@ -27,57 +27,88 @@
 APP数据 ----> 入站 ----> 路由(Xray) ----> 出战 ----> VPS
 
 {
-  "log": {
-    "loglevel": "warning"
-  },
- "inbounds": [  //  入站，通过socks5代理协议
-    {
-      "tag": "socks",           // 标签
-      "port": 10808,            // 端口
-      "listen": "127.0.0.1",    //监听地址
-      "protocol": "socks",      // 连接协议名称
-    }
-  ],
-  "outbounds": [    // 出战
-    {
-      "tag": "proxy-vmess",   // 下面和路由相对应
-      "protocol": "vmess",
-    }
-    {
-        "tag": "direct",
-        "protocol": "freedom",
+	// 日志
+    "log": {
+        "loglevel": "warning"
     },
-    {
-        "tag": "block",
-        "protocol" "blackhole"
-    }
-  ],
-  "routing": {                          // 路由
-    "domainStrategy": "IPIfNonMatch",   // 域名解析策略，根据不同的设置使用不同的策略
-    "rules": [
+	// 路由
+    "routing": {
+        "domainStrategy": "AsIs",
+        "rules": [
+            {
+                "type": "field",	// 协议类型所有类型；可匹配：ip、domain、port、inboundTag、outboundTag、protocol、network 等。
+                "ip": [
+                    "geoip:private"		// 局域网IP
+                ],
+                "outboundTag": "direct"		// 内置默认直连出站
+            },
+            {
+                // 协议类型匹配全部，"http-in"入站，标签流量转发到"to-socks"出战
+                "type": "field",
+                "inboundTag": ["http-in"],	// 对应57行 标签
+                "outboundTag": "to-socks"	// 对应71行 标签
+            }
+        ]
+    },
+	// 入站
+    "inbounds": [
         {
-          "type": "field",
-          "domain": ["geosite:geolocation-!cn"],  // 不为中国域名
-          "outboundTag": "proxy-vmess"      // 对应出战的 tag标签
+            "listen": null,
+            "port": 10808,
+            "protocol": "vmess",
+            "settings": {
+                "clients": [
+                    {
+                        "id": "0c41318a-32b6-4017-9938-4033bf26b111"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "ws",
+                "security": "none"
+            }
         },
         {
-            "ip" ["geoid:cn"],
-            "outboundTag":"direct"
+            "listen": null,
+            "port": 10809,
+            "protocol": "vmess",
+            "settings": {
+                "clients": [
+                    {
+                        "id": "0c41318a-32b6-4017-9938-4033bf26b111"
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "ws",
+                "security": "none"
+            },
+            "tag": "http-in"
+        }
+    ],
+	// 出战
+    "outbounds": [
+        {
+            "protocol": "freedom",
+            "tag": "direct"
         },
         {
-            "domain"["geosite:cn"], // 所有中国域名
-            "outboundTag":"direct"  // 对应一个 outbound 的标识
+            "protocol": "blackhole",
+            "tag": "block"
         },
         {
-            "type": "field",
-            "ip": [
-                "geoip:private"     // geoip:private包含内网IP
-            ],
-            "outboundTag": "freedom",   // freedom 可以访问服务器内网设备
-
+            "tag": "to-socks",
+            "protocol": "socks",	// 类型为socks，详细可见官网配置
+            "settings": {
+                "servers": [
+                    {
+                        "address": "127.0.0.1",
+                        "port": 1080
+                    }
+                ]
+            }
         }
     ]
-  }
 }
 ```
 

@@ -146,10 +146,125 @@ nginx -V 2>&1 | grep -o with-http_dav_module
             dav_ext_lock zone=davlock;                      # DAV扩展锁绑定的内存区域
         }
 ```
+
 ```
 ## 错误信息
 1、./configure: error: the HTTP XSLT module requires the libxml2/libxslt
 libraries. You can either do not enable the module or install the libraries.
 ```
 apt-get install libxslt-dev
+```
+
+
+# 搭建推流直播
+
+|协议|URL 格式|延迟|优点|缺点|
+|---|---|---|---|---|
+|RTMP   |rtmp://ip/live/test   |1-3 秒   |极低延迟 |浏览器不支持，需播放器 |				
+|HTTP-FLV	|http://ip/live/test.flv	|2-5 秒	|低延迟，网页可播	|需 flv.js 支持|
+|HLS	|http://ip/hls/test.m3u8	|10-30 秒	|兼容性最好	|延迟高
+
+
+## 方式一：VLC 播放
+打开 VLC -> 媒体 -> 打开网络串流。
+输入：rtmp://你的IP/live/test
+回车，画面出来了！
+
+## 方式二：浏览器播放 HLS（Safari/Edge）
+直接在地址栏输入：http://你的IP/hls/test.m3u8
+Safari 和 Edge 原生支持 HLS，直接就能看。Chrome 需要插件。
+
+## 方式三：网页播放 HTTP-FLV
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nginx-RTMP 直播</title>
+    <script src="https://cdn.bootcss.com/flv.js/1.5.0/flv.min.js"></script>
+</head>
+<body>
+    <h1>我的直播间</h1>
+    <video id="videoElement" controls width="800" height="450"></video>
+    <script>
+        if (flvjs.isSupported()) {
+            var videoElement = document.getElementById('videoElement');
+            var flvPlayer = flvjs.createPlayer({
+                type: 'flv',
+                url: 'http://你的IP/live/test.flv' // 注意这里是 flv
+            });
+            flvPlayer.attachMediaElement(videoElement);
+            flvPlayer.load();
+            flvPlayer.play();
+        }
+    </script>
+</body>
+</html>
+```
+
+## 配置文件
+```conf
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+rtmp {
+    server {
+        listen 1935; # RTMP 默认端口
+        chunk_size 4096;
+
+        application live {
+            live on;             # 开启直播模式
+            record off;          # 关闭录制（节省硬盘）
+            allow publish 127.0.0.1; # 允许推流的客户端 IP，生产环境建议改成内网 IP 或密码验证
+            
+            # 开启 HLS 切片
+            hls on;
+            #hls_path /tmp/hls;   # Ubuntu 路径
+            hls_path E:/nginx/nginx-rtmp-win32-1.2.1/temp/hls; # Windows 路径，注意反斜杠
+            hls_fragment 3s;     # 每个切片 3 秒
+            hls_playlist_length 10s; # 播放列表长度 10 秒
+        }
+    }
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout  65;
+
+    server {
+        listen       80; # HTTP 默认端口，用于播放 HLS
+        server_name  localhost;
+
+        # HLS 播放配置
+        location /hls {
+            types {
+                application/vnd.apple.mpegurl m3u8;
+                video/mp2t ts;
+            }
+            #root /tmp; # Ubuntu
+            root E:/nginx/nginx-rtmp-win32-1.2.1/temp; # Windows
+            add_header Cache-Control no-cache;
+			
+        }
+		location /live {
+			#网页播放 HTTP-FLV
+			flv_live on;
+			chunked_transfer_encoding on;
+			add_header 'Access-Control-Allow-Origin' '*';
+		}
+    }
+}
 ```
